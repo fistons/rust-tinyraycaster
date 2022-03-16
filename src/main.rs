@@ -1,10 +1,8 @@
 //! Poor attempt to write the [ssloy's tinyraycaster](https://github.com/ssloy/tinyraycaster/wiki) in rust
 //! to teach mysef both rust and raycasting
 
-
 use std::fs::OpenOptions;
 use std::io::prelude::*;
-
 
 /// Windows width
 const WIDTH: usize = 512;
@@ -12,14 +10,20 @@ const WIDTH: usize = 512;
 /// Window height
 const HEIGHT: usize = 512;
 
-/// Convert Red/Green/Blue/Alpha color component in a 32 bit integer. 
+const MAP_WIDTH: usize = 16;
+const MAP_HEIGHT: usize = 16;
+
+const RECT_W: usize = WIDTH / MAP_WIDTH;
+const RECT_H: usize = HEIGHT / MAP_HEIGHT;
+
+/// Convert Red/Green/Blue/Alpha color component in a 32 bits integer.
 fn pack_color(r: u8, g: u8, b: u8, alpha: Option<u8>) -> u32 {
     let a = alpha.unwrap_or(0);
 
     ((a as u32) << 24) + ((b as u32) << 16) + ((g as u32) << 8) + (r as u32)
 }
 
-/// Convert a 32 bit integer into its four color RGBA component.
+/// Convert a 32 bits integer into its four color RGBA component.
 fn unpack_color(color: &u32) -> (u8, u8, u8, u8) {
     let r: u8 = (color & 255) as u8;
     let g: u8 = ((color >> 8) & 255) as u8;
@@ -29,6 +33,17 @@ fn unpack_color(color: &u32) -> (u8, u8, u8, u8) {
     (r, g, b, a)
 }
 
+fn draw_rectangle(framebuffer: &mut [u32; WIDTH * HEIGHT], x: usize, y: usize, color: u32) {
+    for i in 0..RECT_W {
+        for j in 0..RECT_H {
+            let cx = x + i;
+            let cy = y + j;
+
+            assert!(cx < WIDTH && cy < HEIGHT);
+            framebuffer[cx + cy * WIDTH] = color;
+        }
+    }
+}
 
 /// Write the framebuffer to the disk as a [PPM](http://netpbm.sourceforge.net/doc/ppm.html) image.
 fn drop_ppm_image(file_name: &str, framebuffer: &[u32; WIDTH * HEIGHT]) -> std::io::Result<()> {
@@ -54,6 +69,24 @@ fn drop_ppm_image(file_name: &str, framebuffer: &[u32; WIDTH * HEIGHT]) -> std::
 fn main() {
     let mut framebuffer: [u32; WIDTH * HEIGHT] = [255; WIDTH * HEIGHT];
 
+    let map = "0000222222220000\
+               1              0\
+               1      11111   0\
+               1     0        0\
+               0     0  1110000\
+               0     3        0\
+               0   10000      0\
+               0   0   11100  0\
+               0   0   0      0\
+               0   0   1  00000\
+               0       1      0\
+               2       1      0\
+               0       0      0\
+               0 0000000      0\
+               0              0\
+               0002222222200000";
+    assert!(map.len() == MAP_WIDTH * MAP_HEIGHT);
+
     for j in 0..HEIGHT {
         for i in 0..WIDTH {
             let r: u8 = (255 * i / HEIGHT) as u8;
@@ -64,5 +97,16 @@ fn main() {
         }
     }
 
+    // Draw the rectangles
+    for (i, c) in map.chars().enumerate() {
+        let x = i % MAP_WIDTH * RECT_H;
+        let y = i / MAP_WIDTH * RECT_W;
+        match c {
+            ' ' => (), 
+            _ => draw_rectangle(&mut framebuffer, x, y, pack_color(0, 255, 255, None)),
+        }
+    }
+
+    // Drop that PPM
     drop_ppm_image("./out.ppm", &framebuffer).expect("Could not write data on disk");
 }
