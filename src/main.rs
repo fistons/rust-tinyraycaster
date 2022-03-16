@@ -87,7 +87,7 @@ fn main() {
                0002222222200000";
     assert!(map.len() == MAP_WIDTH * MAP_HEIGHT);
 
-    let (player_x, player_y) = (3.456, 2.345);
+    let (player_x, player_y, player_a): (f64, f64, f64) = (3.456, 2.345, 1.523);
 
     for j in 0..HEIGHT {
         for i in 0..WIDTH {
@@ -110,7 +110,23 @@ fn main() {
     }
 
     // Draw the player
-    draw_rectangle(&mut framebuffer, player_x as usize * RECT_W, player_y as usize * RECT_H, 5, 5, pack_color(255, 255, 255, None));
+    draw_rectangle(&mut framebuffer, (player_x * RECT_W as f64) as usize, (player_y * RECT_H as f64) as usize, 5, 5, pack_color(255, 255, 255, None));
+
+    // Draw the line
+    for t in 0u32..200000 {
+      let t = f64::from(t) * 0.005;
+      let cx = player_x as f64 + t*player_a.cos();
+      let cy = player_y as f64 + t*player_a.sin();
+
+      if let Some(c) = map.chars().nth(cx as usize + cy as usize * MAP_WIDTH) {
+        if c != ' ' {
+          break;
+        }
+      }
+
+      let (pix_x, pix_y) = ((cx * RECT_W as f64) as usize, (cy * RECT_H as f64) as usize);
+      framebuffer[pix_x + pix_y * WIDTH] = pack_color(255, 255, 255, None);
+    }
 
     // Drop that PPM
     drop_ppm_image("./out.ppm", &framebuffer).expect("Could not write data on disk");
