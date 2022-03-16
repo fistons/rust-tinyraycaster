@@ -39,7 +39,7 @@ fn drop_ppm_image(file_name: &str, framebuffer: &[u32; WIDTH * HEIGHT]) -> std::
         .append(false)
         .open(file_name)?;
 
-    file.write_all("P6\n{WIDTH} {HEIGHT}\n255\n".as_bytes())?;
+    file.write_all(format!("P6\n{WIDTH} {HEIGHT}\n255\n").as_bytes())?;
     for i in framebuffer {
         let (r, g, b, _a) = unpack_color(i);
 
