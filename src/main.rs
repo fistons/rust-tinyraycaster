@@ -33,9 +33,9 @@ fn unpack_color(color: &u32) -> (u8, u8, u8, u8) {
     (r, g, b, a)
 }
 
-fn draw_rectangle(framebuffer: &mut [u32; WIDTH * HEIGHT], x: usize, y: usize, color: u32) {
-    for i in 0..RECT_W {
-        for j in 0..RECT_H {
+fn draw_rectangle(framebuffer: &mut [u32; WIDTH * HEIGHT], x: usize, y: usize, w: usize, h: usize, color: u32) {
+    for i in 0..w {
+        for j in 0..h {
             let cx = x + i;
             let cy = y + j;
 
@@ -87,6 +87,8 @@ fn main() {
                0002222222200000";
     assert!(map.len() == MAP_WIDTH * MAP_HEIGHT);
 
+    let (player_x, player_y) = (3.456, 2.345);
+
     for j in 0..HEIGHT {
         for i in 0..WIDTH {
             let r: u8 = (255 * i / HEIGHT) as u8;
@@ -103,9 +105,12 @@ fn main() {
         let y = i / MAP_WIDTH * RECT_W;
         match c {
             ' ' => (), 
-            _ => draw_rectangle(&mut framebuffer, x, y, pack_color(0, 255, 255, None)),
+            _ => draw_rectangle(&mut framebuffer, x, y, RECT_W, RECT_H, pack_color(0, 255, 255, None)),
         }
     }
+
+    // Draw the player
+    draw_rectangle(&mut framebuffer, player_x as usize * RECT_W, player_y as usize * RECT_H, 5, 5, pack_color(255, 255, 255, None));
 
     // Drop that PPM
     drop_ppm_image("./out.ppm", &framebuffer).expect("Could not write data on disk");
