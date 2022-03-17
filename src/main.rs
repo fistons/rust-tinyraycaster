@@ -33,6 +33,7 @@ fn unpack_color(color: &u32) -> (u8, u8, u8, u8) {
     (r, g, b, a)
 }
 
+/// Draw a rectangle on the framebuffer.
 fn draw_rectangle(framebuffer: &mut [u32; WIDTH * HEIGHT], x: usize, y: usize, w: usize, h: usize, color: u32) {
     for i in 0..w {
         for j in 0..h {
@@ -55,12 +56,18 @@ fn drop_ppm_image(file_name: &str, framebuffer: &[u32; WIDTH * HEIGHT]) -> std::
         .append(false)
         .open(file_name)?;
 
-    file.write_all(format!("P6\n{WIDTH} {HEIGHT}\n255\n").as_bytes())?;
-    for i in framebuffer {
-        let (r, g, b, _a) = unpack_color(i);
+    let mut buffer = format!("P6\n{WIDTH} {HEIGHT}\n255\n").as_bytes().to_vec(); // Header in the write buffer
+    framebuffer.iter()
+      .map(|pix| unpack_color(pix))
+      //.map(|(r, g, b, _a)| vec![r, g, b])
+      //.for_each(|pix| buffer.extend(pix)); // Slower but why?
+      .for_each(|(r, g, b, _a)| {
+        buffer.push(r);
+        buffer.push(g);
+        buffer.push(b);
+      }); // Frame in the write buffer
 
-        file.write_all(&[r, g, b])?;
-    }
+    file.write_all(&buffer)?; // Write all the things
 
     Ok(())
 }
@@ -104,7 +111,7 @@ fn main() {
         let y = i / MAP_WIDTH * RECT_W;
         let color = colors[c as usize % 10];
         match c {
-            ' ' => (),
+            ' ' => (), // Blank char, so nothing to write on the map
             _ => draw_rectangle(&mut framebuffer, x, y, RECT_W, RECT_H, color)
         }
       }
@@ -122,7 +129,7 @@ fn main() {
               let cy = player_y as f64 + t * angle.sin();
             
               let (pix_x, pix_y) = ((cx * RECT_W as f64) as usize, (cy * RECT_H as f64) as usize);
-              framebuffer[pix_x + pix_y * WIDTH] = pack_color(160, 160, 160, None);
+              framebuffer[pix_x + pix_y * WIDTH] = pack_color(160, 160, 160, None); // Write the 'dot' of the ray trajectory on the framebuffer
 
               match map.chars().nth(cx as usize + cy as usize * MAP_WIDTH) {
                   Some(c) if c != ' ' => {
