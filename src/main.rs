@@ -88,6 +88,7 @@ fn main() {
     assert!(map.len() == MAP_WIDTH * MAP_HEIGHT);
 
     let (player_x, player_y, player_a): (f64, f64, f64) = (3.456, 2.345, 1.523);
+    let player_fov = std::f64::consts::PI / 3f64;
 
     for j in 0..HEIGHT {
         for i in 0..WIDTH {
@@ -104,7 +105,7 @@ fn main() {
         let x = i % MAP_WIDTH * RECT_H;
         let y = i / MAP_WIDTH * RECT_W;
         match c {
-            ' ' => (), 
+            ' ' => (),
             _ => draw_rectangle(&mut framebuffer, x, y, RECT_W, RECT_H, pack_color(0, 255, 255, None)),
         }
     }
@@ -112,20 +113,23 @@ fn main() {
     // Draw the player
     draw_rectangle(&mut framebuffer, (player_x * RECT_W as f64) as usize, (player_y * RECT_H as f64) as usize, 5, 5, pack_color(255, 255, 255, None));
 
-    // Draw the line
-    for t in 0u32..200000 {
-      let t = f64::from(t) * 0.005;
-      let cx = player_x as f64 + t*player_a.cos();
-      let cy = player_y as f64 + t*player_a.sin();
+    for i in 0..WIDTH {
+        let angle = player_a - player_fov / 2f64 + player_fov * i as f64 / WIDTH as f64;
 
-      if let Some(c) = map.chars().nth(cx as usize + cy as usize * MAP_WIDTH) {
-        if c != ' ' {
-          break;
+        // Draw the line
+        for t in 0u32..20000 {
+            let t = f64::from(t) * 0.05;
+            let cx = player_x as f64 + t * angle.cos();
+            let cy = player_y as f64 + t * angle.sin();
+
+            match map.chars().nth(cx as usize + cy as usize * MAP_WIDTH) {
+                Some(c) if c != ' ' => break,
+                _ => (),
+            }
+
+            let (pix_x, pix_y) = ((cx * RECT_W as f64) as usize, (cy * RECT_H as f64) as usize);
+            framebuffer[pix_x + pix_y * WIDTH] = pack_color(255, 255, 255, None);
         }
-      }
-
-      let (pix_x, pix_y) = ((cx * RECT_W as f64) as usize, (cy * RECT_H as f64) as usize);
-      framebuffer[pix_x + pix_y * WIDTH] = pack_color(255, 255, 255, None);
     }
 
     // Drop that PPM
