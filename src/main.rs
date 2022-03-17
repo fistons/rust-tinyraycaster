@@ -126,7 +126,7 @@ fn main() {
 
               match map.chars().nth(cx as usize + cy as usize * MAP_WIDTH) {
                   Some(c) if c != ' ' => {
-                    let column_height = (HEIGHT as f64/ t) as usize;
+                    let column_height = (HEIGHT as f64/ (t* (angle - player_a).cos())) as usize;
                     let color = colors[c as usize % 10];
                     draw_rectangle(&mut framebuffer, WIDTH / 2 + i, HEIGHT/2 - column_height/2, 1, column_height, color);
                     break;
