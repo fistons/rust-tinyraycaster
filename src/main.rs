@@ -5,7 +5,7 @@ use std::fs::OpenOptions;
 use std::io::prelude::*;
 
 /// Windows width
-const WIDTH: usize = 512;
+const WIDTH: usize = 1024;
 
 /// Window height
 const HEIGHT: usize = 512;
@@ -13,7 +13,7 @@ const HEIGHT: usize = 512;
 const MAP_WIDTH: usize = 16;
 const MAP_HEIGHT: usize = 16;
 
-const RECT_W: usize = WIDTH / MAP_WIDTH;
+const RECT_W: usize = WIDTH / (MAP_WIDTH * 2);
 const RECT_H: usize = HEIGHT / MAP_HEIGHT;
 
 /// Convert Red/Green/Blue/Alpha color component in a 32 bits integer.
@@ -38,8 +38,9 @@ fn draw_rectangle(framebuffer: &mut [u32; WIDTH * HEIGHT], x: usize, y: usize, w
         for j in 0..h {
             let cx = x + i;
             let cy = y + j;
-
-            assert!(cx < WIDTH && cy < HEIGHT);
+            if cx >= WIDTH || cy >= HEIGHT {
+              continue;
+            }
             framebuffer[cx + cy * WIDTH] = color;
         }
     }
@@ -67,7 +68,7 @@ fn drop_ppm_image(file_name: &str, framebuffer: &[u32; WIDTH * HEIGHT]) -> std::
 }
 
 fn main() {
-    let mut framebuffer: [u32; WIDTH * HEIGHT] = [255; WIDTH * HEIGHT];
+    let mut framebuffer: [u32; WIDTH * HEIGHT] = [pack_color(255, 255, 255, None); WIDTH * HEIGHT];
 
     let map = "0000222222220000\
                1              0\
@@ -90,16 +91,6 @@ fn main() {
     let (player_x, player_y, player_a): (f64, f64, f64) = (3.456, 2.345, 1.523);
     let player_fov = std::f64::consts::PI / 3f64;
 
-    for j in 0..HEIGHT {
-        for i in 0..WIDTH {
-            let r: u8 = (255 * i / HEIGHT) as u8;
-            let g: u8 = (255 * j / WIDTH) as u8;
-            let b: u8 = 0;
-
-            framebuffer[i + j * HEIGHT] = pack_color(r, g, b, None);
-        }
-    }
-
     // Draw the rectangles
     for (i, c) in map.chars().enumerate() {
         let x = i % MAP_WIDTH * RECT_H;
@@ -113,22 +104,27 @@ fn main() {
     // Draw the player
     draw_rectangle(&mut framebuffer, (player_x * RECT_W as f64) as usize, (player_y * RECT_H as f64) as usize, 5, 5, pack_color(255, 255, 255, None));
 
-    for i in 0..WIDTH {
-        let angle = player_a - player_fov / 2f64 + player_fov * i as f64 / WIDTH as f64;
+    for i in 0..WIDTH / 2 {
+        let angle = player_a - player_fov / 2f64 + player_fov * i as f64 / (WIDTH / 2) as f64;
 
         // Draw the line
         for t in 0u32..20000 {
             let t = f64::from(t) * 0.05;
             let cx = player_x as f64 + t * angle.cos();
             let cy = player_y as f64 + t * angle.sin();
+            
+            let (pix_x, pix_y) = ((cx * RECT_W as f64) as usize, (cy * RECT_H as f64) as usize);
+            framebuffer[pix_x + pix_y * WIDTH] = pack_color(160, 160, 160, None);
 
             match map.chars().nth(cx as usize + cy as usize * MAP_WIDTH) {
-                Some(c) if c != ' ' => break,
+                Some(c) if c != ' ' => {
+                  let column_height = (HEIGHT as f64/ t) as usize;
+                  draw_rectangle(&mut framebuffer, WIDTH / 2 + i, HEIGHT/2 - column_height/2, 1, column_height, pack_color(0, 255, 255, None));
+                  break;
+                },
                 _ => (),
             }
 
-            let (pix_x, pix_y) = ((cx * RECT_W as f64) as usize, (cy * RECT_H as f64) as usize);
-            framebuffer[pix_x + pix_y * WIDTH] = pack_color(255, 255, 255, None);
         }
     }
 
