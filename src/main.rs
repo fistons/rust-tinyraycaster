@@ -3,6 +3,7 @@
 
 use std::fs::OpenOptions;
 use std::io::prelude::*;
+use image::GenericImageView;
 
 /// Windows width
 const WIDTH: usize = 1024;
@@ -15,6 +16,29 @@ const MAP_HEIGHT: usize = 16;
 
 const RECT_W: usize = WIDTH / (MAP_WIDTH * 2);
 const RECT_H: usize = HEIGHT / MAP_HEIGHT;
+
+
+/// Load a texture from an image file using the `image` crate.
+/// We use it instead of the Rust port of stb (as adviced in ssloy's 
+/// tutorial) because it's a bit more Rusty.
+fn load_image(path: &str) -> std::io::Result<(Vec<u32>, usize, usize)> {
+  let img = image::open(path).expect("Could not load image");
+
+  let (image_width, image_height) = (img.dimensions().0, img.dimensions().1);
+  let texture_count = image_width / image_height;
+  let texture_size = image_width / texture_count;
+  if image_width != image_height * texture_count {
+    return Err(std::io::Error::new(std::io::ErrorKind::InvalidData, "Error: the texture file must contain N square textures packed horizontally"));
+  }
+
+  let texture : Vec<u32> = img.pixels().into_iter()
+    .map(|(_,_,p)| p)
+    .map(|p| pack_color(p[0] ,p[1], p[2], Some(p[3])))
+    .collect();
+
+  Ok((texture, texture_size as usize, texture_count as usize))
+}
+
 
 /// Convert Red/Green/Blue/Alpha color component in a 32 bits integer.
 fn pack_color(r: u8, g: u8, b: u8, alpha: Option<u8>) -> u32 {
@@ -91,6 +115,9 @@ fn main() {
                0002222222200000";
     assert!(map.len() == MAP_WIDTH * MAP_HEIGHT);
 
+    // Load texture
+    let (texture, texture_size, texture_count) = load_image("src/walltext.png").expect("Can't load texture file");
+
     // Init colors
     let mut colors = [pack_color(0, 0, 0, None); 10];
     for i in 0..colors.len() {
@@ -141,6 +168,14 @@ fn main() {
                   _ => (),
               }
           }
+      }
+
+      // And now, write the 4th texture on the screen
+      let texture_id = 4;
+      for i in 0..texture_size {
+        for j in 0..texture_size {
+          framebuffer[i + j * WIDTH] = texture[i + texture_id * texture_size + j * texture_size * texture_count]
+        }
       }
 
       // Drop that PPM
