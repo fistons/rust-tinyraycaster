@@ -61,7 +61,9 @@ fn unpack_color(color: &u32) -> (u8, u8, u8, u8) {
 }
 
 /// Draw a rectangle on the framebuffer.
-fn draw_rectangle(framebuffer: &mut [u32; WIDTH * HEIGHT], x: usize, y: usize, w: usize, h: usize, color: u32) {
+fn draw_rectangle(
+    framebuffer: &mut [u32; WIDTH * HEIGHT], x: usize, y: usize, w: usize, h: usize, color: u32,
+) {
     for i in 0..w {
         for j in 0..h {
             let cx = x + i;
@@ -139,13 +141,27 @@ fn main() {
                 _ => {
                     let texture_id = c.to_digit(10).unwrap() as usize;
                     assert!(texture_id < texture_count);
-                    draw_rectangle(&mut framebuffer, x, y, RECT_W, RECT_H, *texture.get(texture_id * texture_size).unwrap());
+                    draw_rectangle(
+                        &mut framebuffer,
+                        x,
+                        y,
+                        RECT_W,
+                        RECT_H,
+                        *texture.get(texture_id * texture_size).unwrap(),
+                    );
                 }
             }
         }
 
         // Draw the player
-        draw_rectangle(&mut framebuffer, (player_x * RECT_W as f64) as usize, (player_y * RECT_H as f64) as usize, 5, 5, pack_color(255, 255, 255, None));
+        draw_rectangle(
+            &mut framebuffer,
+            (player_x * RECT_W as f64) as usize,
+            (player_y * RECT_H as f64) as usize,
+            5,
+            5,
+            pack_color(255, 255, 255, None),
+        );
 
         for i in 0..WIDTH / 2 {
             let angle = player_a - player_fov / 2f64 + player_fov * i as f64 / (WIDTH / 2) as f64;
@@ -165,7 +181,14 @@ fn main() {
                             (HEIGHT as f64 / (t * (angle - player_a).cos())) as usize;
                         let texture_id = c.to_digit(10).unwrap() as usize;
                         assert!(texture_id < texture_count);
-                        draw_rectangle(&mut framebuffer, WIDTH / 2 + i, HEIGHT / 2 - column_height / 2, 1, column_height, *texture.get(texture_id * texture_size).unwrap());
+                        draw_rectangle(
+                            &mut framebuffer,
+                            WIDTH / 2 + i,
+                            HEIGHT / 2 - column_height / 2,
+                            1,
+                            column_height,
+                            *texture.get(texture_id * texture_size).unwrap(),
+                        );
                         break;
                     }
                     _ => (),
@@ -174,6 +197,7 @@ fn main() {
         }
 
         // Drop that PPM
-        drop_ppm_image(&format!("./out_{a:0width$}.ppm", width = 3), &framebuffer).expect("Could not write data on disk");
+        drop_ppm_image(&format!("./out_{a:0width$}.ppm", width = 3), &framebuffer)
+            .expect("Could not write data on disk");
     }
 }
