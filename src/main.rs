@@ -123,7 +123,7 @@ fn main() {
 
     // Load texture
     let (texture, texture_size, texture_count) =
-        load_image("src/walltext.png").expect("Can't load texture file");
+        load_image("resources/walltext.png").expect("Can't load texture file");
 
     let (player_x, player_y, mut player_a): (f64, f64, f64) = (3.456, 2.345, 1.523);
     let player_fov = std::f64::consts::PI / 3f64;
