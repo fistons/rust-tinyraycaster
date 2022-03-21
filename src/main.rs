@@ -89,13 +89,7 @@ fn drop_ppm_image(file_name: &str, framebuffer: &[u32; WIDTH * HEIGHT]) -> std::
     framebuffer
         .iter()
         .map(unpack_color)
-        //.map(|(r, g, b, _a)| vec![r, g, b])
-        //.for_each(|pix| buffer.extend(pix)); // Slower but why?
-        .for_each(|(r, g, b, _a)| {
-            buffer.push(r);
-            buffer.push(g);
-            buffer.push(b);
-        }); // Frame in the write buffer
+        .for_each(|(r, g, b, _a)| buffer.extend([r, g, b])); // Frame in the write buffer
 
     file.write_all(&buffer)?; // Write all the things
 
