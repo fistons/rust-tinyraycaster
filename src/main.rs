@@ -17,6 +17,27 @@ const MAP_HEIGHT: usize = 16;
 const RECT_W: usize = WIDTH / (MAP_WIDTH * 2);
 const RECT_H: usize = HEIGHT / MAP_HEIGHT;
 
+fn texture_column(
+    image: &[u32], texture_size: usize, texture_number: usize, texture_id: usize,
+    texture_coordonate: usize, column_height: usize,
+) -> Vec<u32> {
+    let image_width = texture_size * texture_number;
+
+    let mut column: Vec<u32> = Vec::with_capacity(column_height);
+    for i in 0..column_height {
+        // For each point of the texture_column
+        let pix_x = texture_id * texture_size + texture_coordonate;
+        let pix_y = (i * texture_size) / column_height;
+        column.push(
+            *image
+                .get(pix_x + pix_y * image_width)
+                .expect("Could not create the texture column"),
+        );
+    }
+
+    column
+}
+
 /// Load a texture from an image file using the `image` crate.
 /// We use it instead of the Rust port of stb (as adviced in ssloy's
 /// tutorial) because it's a bit more Rusty.
@@ -163,8 +184,8 @@ fn main() {
             // Draw the line
             for t in 0u32..20000 {
                 let t = f64::from(t) * 0.05;
-                let cx = player_x as f64 + t * angle.cos();
-                let cy = player_y as f64 + t * angle.sin();
+                let cx = player_x + t * angle.cos();
+                let cy = player_y + t * angle.sin();
 
                 let (pix_x, pix_y) = ((cx * RECT_W as f64) as usize, (cy * RECT_H as f64) as usize);
                 framebuffer[pix_x + pix_y * WIDTH] = pack_color(160, 160, 160, None); // Write the 'dot' of the ray trajectory on the framebuffer
@@ -174,15 +195,36 @@ fn main() {
                         let column_height =
                             (HEIGHT as f64 / (t * (angle - player_a).cos())) as usize;
                         let texture_id = c.to_digit(10).unwrap() as usize;
-                        assert!(texture_id < texture_count);
-                        draw_rectangle(
-                            &mut framebuffer,
-                            WIDTH / 2 + i,
-                            HEIGHT / 2 - column_height / 2,
-                            1,
+
+                        let hit_x = cx - (cx + 0.5).floor();
+                        let hit_y = cy - (cy + 0.5).floor();
+
+                        let mut x_texture_coordinate = if hit_y.abs() > hit_x.abs() {
+                            hit_y * texture_size as f64
+                        } else {
+                            hit_x * texture_size as f64
+                        };
+
+                        if x_texture_coordinate < 0f64 {
+                            x_texture_coordinate += texture_size as f64;
+                        }
+
+                        let column = texture_column(
+                            &texture,
+                            texture_size,
+                            texture_count,
+                            texture_id,
+                            x_texture_coordinate as usize,
                             column_height,
-                            *texture.get(texture_id * texture_size).unwrap(),
                         );
+                        let pix_x = WIDTH / 2 + i;
+                        for j in 0..column_height {
+                            let pix_y = j + HEIGHT / 2 - column_height / 2;
+                            if pix_y > HEIGHT {
+                                continue;
+                            }
+                            framebuffer[pix_x + pix_y * WIDTH] = *column.get(j).unwrap();
+                        }
                         break;
                     }
                     _ => (),
