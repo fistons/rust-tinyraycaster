@@ -2,10 +2,11 @@
 //! to teach mysef both rust and raycasting
 
 use image::GenericImageView;
-use utils::{pack_color, drop_ppm_image};
-
+use utils::{drop_ppm_image, pack_color};
+use framebuffer::Framebuffer;
+  
+mod framebuffer;
 mod utils;
-
 
 /// Windows width
 const WIDTH: usize = 1024;
@@ -65,25 +66,6 @@ fn load_image(path: &str) -> std::io::Result<(Vec<u32>, usize, usize)> {
 
     Ok((texture, texture_size as usize, texture_count as usize))
 }
-
-
-/// Draw a rectangle on the framebuffer.
-fn draw_rectangle(
-    framebuffer: &mut [u32; WIDTH * HEIGHT], x: usize, y: usize, w: usize, h: usize, color: u32,
-) {
-    for i in 0..w {
-        for j in 0..h {
-            let cx = x + i;
-            let cy = y + j;
-            if cx >= WIDTH || cy >= HEIGHT {
-                continue;
-            }
-            framebuffer[cx + cy * WIDTH] = color;
-        }
-    }
-}
-
-
 fn main() {
     let map = "0000222222220000\
                1              0\
@@ -109,10 +91,14 @@ fn main() {
 
     let (player_x, player_y, mut player_a): (f64, f64, f64) = (3.456, 2.345, 1.523);
     let player_fov = std::f64::consts::PI / 3f64;
-    for a in 0..360 {
-        player_a += 2f64 * std::f64::consts::PI / 360f64;
 
-        let mut framebuffer = [pack_color(255, 255, 255, None); WIDTH * HEIGHT];
+  
+    let mut framebuffer = Framebuffer::new(WIDTH, HEIGHT);
+
+
+    for a in 0..360 {
+        framebuffer.clear();
+        player_a += 2f64 * std::f64::consts::PI / 360f64;
 
         // Draw the map
         for (i, c) in map.chars().enumerate() {
@@ -123,8 +109,7 @@ fn main() {
                 _ => {
                     let texture_id = c.to_digit(10).unwrap() as usize;
                     assert!(texture_id < texture_count);
-                    draw_rectangle(
-                        &mut framebuffer,
+                    framebuffer.draw_rectangle(
                         x,
                         y,
                         RECT_W,
@@ -136,8 +121,7 @@ fn main() {
         }
 
         // Draw the player
-        draw_rectangle(
-            &mut framebuffer,
+        framebuffer.draw_rectangle(
             (player_x * RECT_W as f64) as usize,
             (player_y * RECT_H as f64) as usize,
             5,
@@ -155,7 +139,7 @@ fn main() {
                 let cy = player_y + t * angle.sin();
 
                 let (pix_x, pix_y) = ((cx * RECT_W as f64) as usize, (cy * RECT_H as f64) as usize);
-                framebuffer[pix_x + pix_y * WIDTH] = pack_color(160, 160, 160, None); // Write the 'dot' of the ray trajectory on the framebuffer
+                framebuffer.set_pixel(pix_x, pix_y, pack_color(160, 160, 160, None)); // Write the 'dot' of the ray trajectory on the framebuffer
 
                 match map.chars().nth(cx as usize + cy as usize * MAP_WIDTH) {
                     Some(c) if c != ' ' => {
@@ -190,7 +174,7 @@ fn main() {
                             if pix_y > HEIGHT {
                                 continue;
                             }
-                            framebuffer[pix_x + pix_y * WIDTH] = *column.get(j).unwrap();
+                            framebuffer.set_pixel(pix_x, pix_y, column[j]);
                         }
                         break;
                     }
@@ -200,7 +184,7 @@ fn main() {
         }
 
         // Drop that PPM
-        drop_ppm_image(&format!("./out_{a:0width$}.ppm", width = 3), &framebuffer)
+        drop_ppm_image(&format!("./out_{a:0width$}.ppm", width = 3), framebuffer.get_image())
             .expect("Could not write data on disk");
     }
 }

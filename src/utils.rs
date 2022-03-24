@@ -1,6 +1,6 @@
+use crate::{HEIGHT, WIDTH};
 use std::fs::OpenOptions;
 use std::io::prelude::*;
-use crate::{HEIGHT, WIDTH};
 
 /// Convert Red/Green/Blue/Alpha color component in a 32 bits integer.
 pub fn pack_color(r: u8, g: u8, b: u8, alpha: Option<u8>) -> u32 {
@@ -19,9 +19,8 @@ pub fn unpack_color(color: &u32) -> (u8, u8, u8, u8) {
     (r, g, b, a)
 }
 
-
 /// Write the framebuffer to the disk as a [PPM](http://netpbm.sourceforge.net/doc/ppm.html) image.
-pub fn drop_ppm_image(file_name: &str, framebuffer: &[u32; WIDTH * HEIGHT]) -> std::io::Result<()> {
+pub fn drop_ppm_image(file_name: &str, framebuffer: &[u32]) -> std::io::Result<()> {
     let mut file = OpenOptions::new()
         .read(false)
         .write(true)
