@@ -37,6 +37,6 @@ impl Framebuffer {
     }
 
     pub fn get_image(&self) -> &Vec<u32> {
-      &self.image
+        &self.image
     }
 }

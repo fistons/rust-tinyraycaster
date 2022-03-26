@@ -1,11 +1,14 @@
 //! Poor attempt to write the [ssloy's tinyraycaster](https://github.com/ssloy/tinyraycaster/wiki) in rust
 //! to teach mysef both rust and raycasting
 
-use image::GenericImageView;
-use utils::{drop_ppm_image, pack_color};
 use framebuffer::Framebuffer;
-  
+use image::GenericImageView;
+use player::Player;
+use std::f64::consts::PI;
+use utils::{drop_ppm_image, pack_color};
+
 mod framebuffer;
+mod player;
 mod utils;
 
 /// Windows width
@@ -89,16 +92,12 @@ fn main() {
     let (texture, texture_size, texture_count) =
         load_image("resources/walltext.png").expect("Can't load texture file");
 
-    let (player_x, player_y, mut player_a): (f64, f64, f64) = (3.456, 2.345, 1.523);
-    let player_fov = std::f64::consts::PI / 3f64;
-
-  
+    let mut player = Player::new(3.456, 2.345, 1.523, PI / 3f64);
     let mut framebuffer = Framebuffer::new(WIDTH, HEIGHT);
-
 
     for a in 0..360 {
         framebuffer.clear();
-        player_a += 2f64 * std::f64::consts::PI / 360f64;
+        player.add_angle(2f64 * PI / 360f64);
 
         // Draw the map
         for (i, c) in map.chars().enumerate() {
@@ -121,6 +120,7 @@ fn main() {
         }
 
         // Draw the player
+        let (player_x, player_y) = player.get_pos();
         framebuffer.draw_rectangle(
             (player_x * RECT_W as f64) as usize,
             (player_y * RECT_H as f64) as usize,
@@ -130,7 +130,8 @@ fn main() {
         );
 
         for i in 0..WIDTH / 2 {
-            let angle = player_a - player_fov / 2f64 + player_fov * i as f64 / (WIDTH / 2) as f64;
+            let angle = player.get_angle() - player.get_fov() / 2f64
+                + player.get_fov() * i as f64 / (WIDTH / 2) as f64;
 
             // Draw the line
             for t in 0u32..20000 {
@@ -144,7 +145,7 @@ fn main() {
                 match map.chars().nth(cx as usize + cy as usize * MAP_WIDTH) {
                     Some(c) if c != ' ' => {
                         let column_height =
-                            (HEIGHT as f64 / (t * (angle - player_a).cos())) as usize;
+                            (HEIGHT as f64 / (t * (angle - player.get_angle()).cos())) as usize;
                         let texture_id = c.to_digit(10).unwrap() as usize;
 
                         let hit_x = cx - (cx + 0.5).floor();
@@ -184,7 +185,10 @@ fn main() {
         }
 
         // Drop that PPM
-        drop_ppm_image(&format!("./out_{a:0width$}.ppm", width = 3), framebuffer.get_image())
-            .expect("Could not write data on disk");
+        drop_ppm_image(
+            &format!("./out_{a:0width$}.ppm", width = 3),
+            framebuffer.get_image(),
+        )
+        .expect("Could not write data on disk");
     }
 }
