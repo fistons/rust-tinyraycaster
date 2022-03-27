@@ -3,7 +3,6 @@ use image::GenericImageView;
 
 pub struct Texture {
     image_width: usize,
-    image_height: usize,
     count: usize,
     size: usize,
     image: Vec<u32>,
@@ -33,7 +32,6 @@ impl Texture {
 
         Ok(Texture {
             image_width,
-            image_height,
             count: texture_count,
             size: texture_size,
             image: texture,
@@ -41,13 +39,13 @@ impl Texture {
     }
 
     pub fn get_pixel(&self, i: usize, j: usize, index: usize) -> u32 {
+        assert!(index < self.count);
         self.image[i + index * self.size + j * self.image_width]
     }
 
     pub fn get_scaled_column(
         &self, texture_id: usize, texture_coordonate: usize, column_height: usize,
     ) -> Vec<u32> {
-
         let mut column: Vec<u32> = Vec::with_capacity(column_height);
         for i in 0..column_height {
             column.push(self.get_pixel(
@@ -61,6 +59,6 @@ impl Texture {
     }
 
     pub fn get_size(&self) -> usize {
-      self.size
+        self.size
     }
 }

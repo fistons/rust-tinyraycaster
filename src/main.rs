@@ -2,12 +2,14 @@
 //! to teach mysef both rust and raycasting
 
 use framebuffer::Framebuffer;
+use map::Map;
 use player::Player;
 use std::f64::consts::PI;
 use texture::Texture;
 use utils::{drop_ppm_image, pack_color};
 
 mod framebuffer;
+mod map;
 mod player;
 mod texture;
 mod utils;
@@ -27,7 +29,7 @@ const RECT_H: usize = HEIGHT / MAP_HEIGHT;
 fn wall_x_texture_coordonate(x: f64, y: f64, texture: &Texture) -> usize {
     let hit_x = x - (x + 0.5).floor();
     let hit_y = y - (y + 0.5).floor();
-    
+
     let mut x_texture_coordinate = if hit_y.abs() > hit_x.abs() {
         hit_y * texture.get_size() as f64
     } else {
@@ -42,24 +44,25 @@ fn wall_x_texture_coordonate(x: f64, y: f64, texture: &Texture) -> usize {
 }
 
 fn main() {
-    let map = "0000222222220000\
-               1              0\
-               1      11111   0\
-               1     0        0\
-               0     0  1110000\
-               0     3        0\
-               0   10000      0\
-               0   3   11100  0\
-               5   4   0      0\
-               5   4   1  00000\
-               0       1      0\
-               2       1      0\
-               0       0      0\
-               0 0000000      0\
-               0              0\
-               0002222222200000";
-    assert!(map.len() == MAP_WIDTH * MAP_HEIGHT);
-
+    let map = Map::default();
+    // let map = "0000222222220000\
+    // 1              0\
+    // 1      11111   0\
+    // 1     0        0\
+    // 0     0  1110000\
+    // 0     3        0\
+    // 0   10000      0\
+    // 0   3   11100  0\
+    // 5   4   0      0\
+    // 5   4   1  00000\
+    // 0       1      0\
+    // 2       1      0\
+    // 0       0      0\
+    // 0 0000000      0\
+    // 0              0\
+    // 0002222222200000";
+    // assert!(map.len() == MAP_WIDTH * MAP_HEIGHT);
+    //
     // Load texture
     let texture = Texture::new("resources/walltext.png").expect("Can't load texture file");
 
@@ -70,22 +73,28 @@ fn main() {
         framebuffer.clear();
         player.add_angle(2f64 * PI / 360f64);
 
+        let rect_width = framebuffer.get_width() / (map.get_width() * 2);
+        let rect_height = framebuffer.get_height() / map.get_height();
+
         // Draw the map
-        for (i, c) in map.chars().enumerate() {
-            let x = i % MAP_WIDTH * RECT_H;
-            let y = i / MAP_WIDTH * RECT_W;
-            match c {
-                ' ' => (), // Blank char, so nothing to write on the map
-                _ => {
-                    let texture_id = c.to_digit(10).unwrap() as usize;
-                    framebuffer.draw_rectangle(
-                        x,
-                        y,
-                        RECT_W,
-                        RECT_H,
-                        texture.get_pixel(0, 0, texture_id),
-                    );
+        for j in 0..map.get_height() {
+            for i in 0..map.get_width() {
+                if map.is_empty(i, j) {
+                    continue;
                 }
+
+                let rect_x = i * rect_width;
+                let rect_y = j * rect_height;
+                let texture_id = map
+                    .get(i, j)
+                    .unwrap_or_else(|| panic!("We should have a texture id at {i}:{j}"));
+                framebuffer.draw_rectangle(
+                    rect_x,
+                    rect_y,
+                    rect_width,
+                    rect_height,
+                    texture.get_pixel(0, 0, texture_id),
+                );
             }
         }
 
@@ -112,25 +121,22 @@ fn main() {
                 let (pix_x, pix_y) = ((cx * RECT_W as f64) as usize, (cy * RECT_H as f64) as usize);
                 framebuffer.set_pixel(pix_x, pix_y, pack_color(160, 160, 160, None)); // Write the 'dot' of the ray trajectory on the framebuffer
 
-                match map.chars().nth(cx as usize + cy as usize * MAP_WIDTH) {
-                    Some(c) if c != ' ' => {
-                        let column_height =
-                            (HEIGHT as f64 / (t * (angle - player.get_angle()).cos())) as usize;
-                        let texture_id = c.to_digit(10).unwrap() as usize;
+                if let Some(texture_id) = map.get(cx as usize, cy as usize) {
+                    let column_height =
+                        (HEIGHT as f64 / (t * (angle - player.get_angle()).cos())) as usize;
 
-                        let texture_x_coordinate = wall_x_texture_coordonate(cx, cy, &texture);
-                        let column = texture.get_scaled_column(texture_id, texture_x_coordinate, column_height);
-                        let pix_x = WIDTH / 2 + i;
-                        for j in 0..column_height {
-                            let pix_y = j + HEIGHT / 2 - column_height / 2;
-                            if pix_y > HEIGHT {
-                                continue;
-                            }
-                            framebuffer.set_pixel(pix_x, pix_y, column[j]);
+                    let texture_x_coordinate = wall_x_texture_coordonate(cx, cy, &texture);
+                    let column =
+                        texture.get_scaled_column(texture_id, texture_x_coordinate, column_height);
+                    let pix_x = WIDTH / 2 + i;
+                    for (j, pixel) in column.iter().enumerate().take(column_height) {
+                        let pix_y = j + HEIGHT / 2 - column_height / 2;
+                        if pix_y > HEIGHT {
+                            continue;
                         }
-                        break;
+                        framebuffer.set_pixel(pix_x, pix_y, *pixel);
                     }
-                    _ => (),
+                    break;
                 }
             }
         }

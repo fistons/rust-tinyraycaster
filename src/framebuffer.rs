@@ -39,4 +39,12 @@ impl Framebuffer {
     pub fn get_image(&self) -> &Vec<u32> {
         &self.image
     }
+
+    pub fn get_width(&self) -> usize {
+        self.width
+    }
+
+    pub fn get_height(&self) -> usize {
+        self.height
+    }
 }
