@@ -2,13 +2,14 @@
 //! to teach mysef both rust and raycasting
 
 use framebuffer::Framebuffer;
-use image::GenericImageView;
 use player::Player;
 use std::f64::consts::PI;
+use texture::Texture;
 use utils::{drop_ppm_image, pack_color};
 
 mod framebuffer;
 mod player;
+mod texture;
 mod utils;
 
 /// Windows width
@@ -23,52 +24,23 @@ const MAP_HEIGHT: usize = 16;
 const RECT_W: usize = WIDTH / (MAP_WIDTH * 2);
 const RECT_H: usize = HEIGHT / MAP_HEIGHT;
 
-fn texture_column(
-    image: &[u32], texture_size: usize, texture_number: usize, texture_id: usize,
-    texture_coordonate: usize, column_height: usize,
-) -> Vec<u32> {
-    let image_width = texture_size * texture_number;
+fn wall_x_texture_coordonate(x: f64, y: f64, texture: &Texture) -> usize {
+    let hit_x = x - (x + 0.5).floor();
+    let hit_y = y - (y + 0.5).floor();
+    
+    let mut x_texture_coordinate = if hit_y.abs() > hit_x.abs() {
+        hit_y * texture.get_size() as f64
+    } else {
+        hit_x * texture.get_size() as f64
+    };
 
-    let mut column: Vec<u32> = Vec::with_capacity(column_height);
-    for i in 0..column_height {
-        // For each point of the texture_column
-        let pix_x = texture_id * texture_size + texture_coordonate;
-        let pix_y = (i * texture_size) / column_height;
-        column.push(
-            *image
-                .get(pix_x + pix_y * image_width)
-                .expect("Could not create the texture column"),
-        );
+    if x_texture_coordinate < 0f64 {
+        x_texture_coordinate += texture.get_size() as f64;
     }
 
-    column
+    x_texture_coordinate as usize
 }
 
-/// Load a texture from an image file using the `image` crate.
-/// We use it instead of the Rust port of stb (as adviced in ssloy's
-/// tutorial) because it's a bit more Rusty.
-fn load_image(path: &str) -> std::io::Result<(Vec<u32>, usize, usize)> {
-    let img = image::open(path).expect("Could not load image");
-
-    let (image_width, image_height) = (img.dimensions().0, img.dimensions().1);
-    let texture_count = image_width / image_height;
-    let texture_size = image_width / texture_count;
-    if image_width != image_height * texture_count {
-        return Err(std::io::Error::new(
-            std::io::ErrorKind::InvalidData,
-            "Error: the texture file must contain N square textures packed horizontally",
-        ));
-    }
-
-    let texture: Vec<u32> = img
-        .pixels()
-        .into_iter()
-        .map(|(_, _, p)| p)
-        .map(|p| pack_color(p[0], p[1], p[2], Some(p[3])))
-        .collect();
-
-    Ok((texture, texture_size as usize, texture_count as usize))
-}
 fn main() {
     let map = "0000222222220000\
                1              0\
@@ -89,8 +61,7 @@ fn main() {
     assert!(map.len() == MAP_WIDTH * MAP_HEIGHT);
 
     // Load texture
-    let (texture, texture_size, texture_count) =
-        load_image("resources/walltext.png").expect("Can't load texture file");
+    let texture = Texture::new("resources/walltext.png").expect("Can't load texture file");
 
     let mut player = Player::new(3.456, 2.345, 1.523, PI / 3f64);
     let mut framebuffer = Framebuffer::new(WIDTH, HEIGHT);
@@ -107,13 +78,12 @@ fn main() {
                 ' ' => (), // Blank char, so nothing to write on the map
                 _ => {
                     let texture_id = c.to_digit(10).unwrap() as usize;
-                    assert!(texture_id < texture_count);
                     framebuffer.draw_rectangle(
                         x,
                         y,
                         RECT_W,
                         RECT_H,
-                        *texture.get(texture_id * texture_size).unwrap(),
+                        texture.get_pixel(0, 0, texture_id),
                     );
                 }
             }
@@ -148,27 +118,8 @@ fn main() {
                             (HEIGHT as f64 / (t * (angle - player.get_angle()).cos())) as usize;
                         let texture_id = c.to_digit(10).unwrap() as usize;
 
-                        let hit_x = cx - (cx + 0.5).floor();
-                        let hit_y = cy - (cy + 0.5).floor();
-
-                        let mut x_texture_coordinate = if hit_y.abs() > hit_x.abs() {
-                            hit_y * texture_size as f64
-                        } else {
-                            hit_x * texture_size as f64
-                        };
-
-                        if x_texture_coordinate < 0f64 {
-                            x_texture_coordinate += texture_size as f64;
-                        }
-
-                        let column = texture_column(
-                            &texture,
-                            texture_size,
-                            texture_count,
-                            texture_id,
-                            x_texture_coordinate as usize,
-                            column_height,
-                        );
+                        let texture_x_coordinate = wall_x_texture_coordonate(cx, cy, &texture);
+                        let column = texture.get_scaled_column(texture_id, texture_x_coordinate, column_height);
                         let pix_x = WIDTH / 2 + i;
                         for j in 0..column_height {
                             let pix_y = j + HEIGHT / 2 - column_height / 2;
