@@ -17,8 +17,8 @@ impl Framebuffer {
         self.image[x + y * self.width] = pixel;
     }
 
-    pub fn clear(&mut self) {
-        self.image = vec![0u32; self.width * self.height];
+    pub fn clear(&mut self, color: u32) {
+        self.image = vec![color; self.width * self.height];
     }
 
     pub fn draw_rectangle(&mut self, x: usize, y: usize, width: usize, height: usize, color: u32) {
