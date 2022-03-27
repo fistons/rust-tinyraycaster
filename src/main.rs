@@ -1,9 +1,18 @@
 //! Poor attempt to write the [ssloy's tinyraycaster](https://github.com/ssloy/tinyraycaster/wiki) in rust
 //! to teach mysef both rust and raycasting
 
-use image::GenericImageView;
-use std::fs::OpenOptions;
-use std::io::prelude::*;
+use framebuffer::Framebuffer;
+use map::Map;
+use player::Player;
+use std::f64::consts::PI;
+use texture::Texture;
+use utils::{drop_ppm_image, pack_color};
+
+mod framebuffer;
+mod map;
+mod player;
+mod texture;
+mod utils;
 
 /// Windows width
 const WIDTH: usize = 1024;
@@ -11,229 +20,104 @@ const WIDTH: usize = 1024;
 /// Window height
 const HEIGHT: usize = 512;
 
-const MAP_WIDTH: usize = 16;
-const MAP_HEIGHT: usize = 16;
+fn wall_x_texture_coordonate(x: f64, y: f64, texture: &Texture) -> usize {
+    let hit_x = x - (x + 0.5).floor();
+    let hit_y = y - (y + 0.5).floor();
 
-const RECT_W: usize = WIDTH / (MAP_WIDTH * 2);
-const RECT_H: usize = HEIGHT / MAP_HEIGHT;
+    let mut x_texture_coordinate = if hit_y.abs() > hit_x.abs() {
+        hit_y * texture.get_size() as f64
+    } else {
+        hit_x * texture.get_size() as f64
+    };
 
-fn texture_column(
-    image: &[u32], texture_size: usize, texture_number: usize, texture_id: usize,
-    texture_coordonate: usize, column_height: usize,
-) -> Vec<u32> {
-    let image_width = texture_size * texture_number;
-
-    let mut column: Vec<u32> = Vec::with_capacity(column_height);
-    for i in 0..column_height {
-        // For each point of the texture_column
-        let pix_x = texture_id * texture_size + texture_coordonate;
-        let pix_y = (i * texture_size) / column_height;
-        column.push(
-            *image
-                .get(pix_x + pix_y * image_width)
-                .expect("Could not create the texture column"),
-        );
+    if x_texture_coordinate < 0f64 {
+        x_texture_coordinate += texture.get_size() as f64;
     }
 
-    column
+    x_texture_coordinate as usize
 }
 
-/// Load a texture from an image file using the `image` crate.
-/// We use it instead of the Rust port of stb (as adviced in ssloy's
-/// tutorial) because it's a bit more Rusty.
-fn load_image(path: &str) -> std::io::Result<(Vec<u32>, usize, usize)> {
-    let img = image::open(path).expect("Could not load image");
+fn render(framebuffer: &mut Framebuffer, map: &Map, player: &Player, texture: &Texture) {
+    framebuffer.clear(pack_color(255, 255, 255, None));
 
-    let (image_width, image_height) = (img.dimensions().0, img.dimensions().1);
-    let texture_count = image_width / image_height;
-    let texture_size = image_width / texture_count;
-    if image_width != image_height * texture_count {
-        return Err(std::io::Error::new(
-            std::io::ErrorKind::InvalidData,
-            "Error: the texture file must contain N square textures packed horizontally",
-        ));
-    }
+    let rect_width = framebuffer.get_width() / (map.get_width() * 2);
+    let rect_height = framebuffer.get_height() / map.get_height();
 
-    let texture: Vec<u32> = img
-        .pixels()
-        .into_iter()
-        .map(|(_, _, p)| p)
-        .map(|p| pack_color(p[0], p[1], p[2], Some(p[3])))
-        .collect();
-
-    Ok((texture, texture_size as usize, texture_count as usize))
-}
-
-/// Convert Red/Green/Blue/Alpha color component in a 32 bits integer.
-fn pack_color(r: u8, g: u8, b: u8, alpha: Option<u8>) -> u32 {
-    let a = alpha.unwrap_or(0);
-
-    ((a as u32) << 24) + ((b as u32) << 16) + ((g as u32) << 8) + (r as u32)
-}
-
-/// Convert a 32 bits integer into its four color RGBA component.
-fn unpack_color(color: &u32) -> (u8, u8, u8, u8) {
-    let r: u8 = (color & 255) as u8;
-    let g: u8 = ((color >> 8) & 255) as u8;
-    let b: u8 = ((color >> 16) & 255) as u8;
-    let a: u8 = ((color >> 24) & 255) as u8;
-
-    (r, g, b, a)
-}
-
-/// Draw a rectangle on the framebuffer.
-fn draw_rectangle(
-    framebuffer: &mut [u32; WIDTH * HEIGHT], x: usize, y: usize, w: usize, h: usize, color: u32,
-) {
-    for i in 0..w {
-        for j in 0..h {
-            let cx = x + i;
-            let cy = y + j;
-            if cx >= WIDTH || cy >= HEIGHT {
+    // Draw the map
+    for j in 0..map.get_height() {
+        for i in 0..map.get_width() {
+            if map.is_empty(i, j) {
                 continue;
             }
-            framebuffer[cx + cy * WIDTH] = color;
+
+            let rect_x = i * rect_width;
+            let rect_y = j * rect_height;
+            let texture_id = map
+                .get(i, j)
+                .unwrap_or_else(|| panic!("We should have a texture id at {i}:{j}"));
+
+            framebuffer.draw_rectangle(
+                rect_x,
+                rect_y,
+                rect_width,
+                rect_height,
+                texture.get_pixel(0, 0, texture_id),
+            );
         }
     }
-}
 
-/// Write the framebuffer to the disk as a [PPM](http://netpbm.sourceforge.net/doc/ppm.html) image.
-fn drop_ppm_image(file_name: &str, framebuffer: &[u32; WIDTH * HEIGHT]) -> std::io::Result<()> {
-    let mut file = OpenOptions::new()
-        .read(false)
-        .write(true)
-        .create(true)
-        .append(false)
-        .open(file_name)?;
+    let (player_x, player_y) = player.get_pos();
+    for i in 0..WIDTH / 2 {
+        let angle = player.get_angle() - player.get_fov() / 2f64
+            + player.get_fov() * i as f64 / (WIDTH / 2) as f64;
 
-    let mut buffer = format!("P6\n{WIDTH} {HEIGHT}\n255\n").as_bytes().to_vec(); // Header in the write buffer
-    framebuffer
-        .iter()
-        .map(unpack_color)
-        .for_each(|(r, g, b, _a)| buffer.extend([r, g, b])); // Frame in the write buffer
+        // Draw the line
+        for t in 0u32..20000 {
+            let t = f64::from(t) * 0.05;
+            let cx = player_x + t * angle.cos();
+            let cy = player_y + t * angle.sin();
 
-    file.write_all(&buffer)?; // Write all the things
+            let (pix_x, pix_y) = (
+                (cx * rect_width as f64) as usize,
+                (cy * rect_height as f64) as usize,
+            );
+            framebuffer.set_pixel(pix_x, pix_y, pack_color(160, 160, 160, None)); // Write the 'dot' of the ray trajectory on the framebuffer
 
-    Ok(())
+            if let Some(texture_id) = map.get(cx as usize, cy as usize) {
+                let column_height =
+                    (HEIGHT as f64 / (t * (angle - player.get_angle()).cos())) as usize;
+
+                let texture_x_coordinate = wall_x_texture_coordonate(cx, cy, texture);
+                let column =
+                    texture.get_scaled_column(texture_id, texture_x_coordinate, column_height);
+                let pix_x = WIDTH / 2 + i;
+                for (j, pixel) in column.iter().enumerate().take(column_height) {
+                    let pix_y = j + HEIGHT / 2 - column_height / 2;
+                    if pix_y > HEIGHT {
+                        continue;
+                    }
+                    framebuffer.set_pixel(pix_x, pix_y, *pixel);
+                }
+                break;
+            }
+        }
+    }
 }
 
 fn main() {
-    let map = "0000222222220000\
-               1              0\
-               1      11111   0\
-               1     0        0\
-               0     0  1110000\
-               0     3        0\
-               0   10000      0\
-               0   3   11100  0\
-               5   4   0      0\
-               5   4   1  00000\
-               0       1      0\
-               2       1      0\
-               0       0      0\
-               0 0000000      0\
-               0              0\
-               0002222222200000";
-    assert!(map.len() == MAP_WIDTH * MAP_HEIGHT);
+    let mut framebuffer = Framebuffer::new(WIDTH, HEIGHT);
+    let mut player = Player::new(3.456, 2.345, 1.523, PI / 3f64);
+    let map = Map::default();
+    let texture = Texture::new("resources/walltext.png")
+        .unwrap_or_else(|_| panic!("Could not load the texture"));
 
-    // Load texture
-    let (texture, texture_size, texture_count) =
-        load_image("resources/walltext.png").expect("Can't load texture file");
-
-    let (player_x, player_y, mut player_a): (f64, f64, f64) = (3.456, 2.345, 1.523);
-    let player_fov = std::f64::consts::PI / 3f64;
-    for a in 0..360 {
-        player_a += 2f64 * std::f64::consts::PI / 360f64;
-
-        let mut framebuffer = [pack_color(255, 255, 255, None); WIDTH * HEIGHT];
-
-        // Draw the map
-        for (i, c) in map.chars().enumerate() {
-            let x = i % MAP_WIDTH * RECT_H;
-            let y = i / MAP_WIDTH * RECT_W;
-            match c {
-                ' ' => (), // Blank char, so nothing to write on the map
-                _ => {
-                    let texture_id = c.to_digit(10).unwrap() as usize;
-                    assert!(texture_id < texture_count);
-                    draw_rectangle(
-                        &mut framebuffer,
-                        x,
-                        y,
-                        RECT_W,
-                        RECT_H,
-                        *texture.get(texture_id * texture_size).unwrap(),
-                    );
-                }
-            }
-        }
-
-        // Draw the player
-        draw_rectangle(
-            &mut framebuffer,
-            (player_x * RECT_W as f64) as usize,
-            (player_y * RECT_H as f64) as usize,
-            5,
-            5,
-            pack_color(255, 255, 255, None),
-        );
-
-        for i in 0..WIDTH / 2 {
-            let angle = player_a - player_fov / 2f64 + player_fov * i as f64 / (WIDTH / 2) as f64;
-
-            // Draw the line
-            for t in 0u32..20000 {
-                let t = f64::from(t) * 0.05;
-                let cx = player_x + t * angle.cos();
-                let cy = player_y + t * angle.sin();
-
-                let (pix_x, pix_y) = ((cx * RECT_W as f64) as usize, (cy * RECT_H as f64) as usize);
-                framebuffer[pix_x + pix_y * WIDTH] = pack_color(160, 160, 160, None); // Write the 'dot' of the ray trajectory on the framebuffer
-
-                match map.chars().nth(cx as usize + cy as usize * MAP_WIDTH) {
-                    Some(c) if c != ' ' => {
-                        let column_height =
-                            (HEIGHT as f64 / (t * (angle - player_a).cos())) as usize;
-                        let texture_id = c.to_digit(10).unwrap() as usize;
-
-                        let hit_x = cx - (cx + 0.5).floor();
-                        let hit_y = cy - (cy + 0.5).floor();
-
-                        let mut x_texture_coordinate = if hit_y.abs() > hit_x.abs() {
-                            hit_y * texture_size as f64
-                        } else {
-                            hit_x * texture_size as f64
-                        };
-
-                        if x_texture_coordinate < 0f64 {
-                            x_texture_coordinate += texture_size as f64;
-                        }
-
-                        let column = texture_column(
-                            &texture,
-                            texture_size,
-                            texture_count,
-                            texture_id,
-                            x_texture_coordinate as usize,
-                            column_height,
-                        );
-                        let pix_x = WIDTH / 2 + i;
-                        for j in 0..column_height {
-                            let pix_y = j + HEIGHT / 2 - column_height / 2;
-                            if pix_y > HEIGHT {
-                                continue;
-                            }
-                            framebuffer[pix_x + pix_y * WIDTH] = *column.get(j).unwrap();
-                        }
-                        break;
-                    }
-                    _ => (),
-                }
-            }
-        }
-
-        // Drop that PPM
-        drop_ppm_image(&format!("./out_{a:0width$}.ppm", width = 3), &framebuffer)
-            .expect("Could not write data on disk");
+    for i in 0..360 {
+        player.add_angle(2f64 * PI / 360f64);
+        render(&mut framebuffer, &map, &player, &texture);
+        drop_ppm_image(
+            &format!("./out_{i:0width$}.ppm", width = 3),
+            framebuffer.get_image(),
+        )
+        .expect("Could not write data on disk");
     }
 }
