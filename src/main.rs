@@ -4,6 +4,7 @@
 use framebuffer::Framebuffer;
 use map::Map;
 use player::Player;
+use sprite::Sprite;
 use std::f64::consts::PI;
 use texture::Texture;
 use utils::{drop_ppm_image, pack_color};
@@ -11,6 +12,7 @@ use utils::{drop_ppm_image, pack_color};
 mod framebuffer;
 mod map;
 mod player;
+mod sprite;
 mod texture;
 mod utils;
 
@@ -37,7 +39,23 @@ fn wall_x_texture_coordonate(x: f64, y: f64, texture: &Texture) -> usize {
     x_texture_coordinate as usize
 }
 
-fn render(framebuffer: &mut Framebuffer, map: &Map, player: &Player, texture: &Texture) {
+fn map_show_sprite(sprite: &Sprite, framebuffer: &mut Framebuffer, map: &Map) {
+    let rect_w = (framebuffer.get_width() / (map.get_width() * 2)) as f64;
+    let rect_h = (framebuffer.get_height() / map.get_height()) as f64;
+
+    framebuffer.draw_rectangle(
+        (sprite.get_x() * rect_w - 3f64) as usize,
+        (sprite.get_y() * rect_h - 3f64) as usize,
+        6,
+        6,
+        pack_color(255, 0, 0, None),
+    )
+}
+
+fn render(
+    framebuffer: &mut Framebuffer, map: &Map, player: &Player, sprites: &Vec<Sprite>,
+    texture: &Texture, _texture_monstre: &Texture,
+) {
     framebuffer.clear(pack_color(255, 255, 255, None));
 
     let rect_width = framebuffer.get_width() / (map.get_width() * 2);
@@ -84,8 +102,8 @@ fn render(framebuffer: &mut Framebuffer, map: &Map, player: &Player, texture: &T
             framebuffer.set_pixel(pix_x, pix_y, pack_color(160, 160, 160, None)); // Write the 'dot' of the ray trajectory on the framebuffer
 
             if let Some(texture_id) = map.get(cx as usize, cy as usize) {
-                let column_height =
-                    (HEIGHT as f64 / (t * (angle - player.get_angle()).cos())) as usize;
+                let dist = t * (angle - player.get_angle()).cos();
+                let column_height = (HEIGHT as f64 / dist) as usize;
 
                 let texture_x_coordinate = wall_x_texture_coordonate(cx, cy, texture);
                 let column =
@@ -102,6 +120,10 @@ fn render(framebuffer: &mut Framebuffer, map: &Map, player: &Player, texture: &T
             }
         }
     }
+
+    for sprite in sprites {
+        map_show_sprite(sprite, framebuffer, map);
+    }
 }
 
 fn main() {
@@ -110,10 +132,24 @@ fn main() {
     let map = Map::default();
     let texture = Texture::new("resources/walltext.png")
         .unwrap_or_else(|_| panic!("Could not load the texture"));
+    let texture_monster = Texture::new("resources/monsters.png")
+        .unwrap_or_else(|_| panic!("Could not load monster texture"));
+    let sprites = vec![
+        Sprite::new(1.834, 8.76, 0),
+        Sprite::new(5.323, 5.365, 1),
+        Sprite::new(4.123, 10.265, 1),
+    ];
 
     for i in 0..360 {
         player.add_angle(2f64 * PI / 360f64);
-        render(&mut framebuffer, &map, &player, &texture);
+        render(
+            &mut framebuffer,
+            &map,
+            &player,
+            &sprites,
+            &texture,
+            &texture_monster,
+        );
         drop_ppm_image(
             &format!("./out_{i:0width$}.ppm", width = 3),
             framebuffer.get_image(),
