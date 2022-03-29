@@ -56,38 +56,35 @@ fn draw_sprite(
     sprite: &Sprite, framebuffer: &mut Framebuffer, player: &Player, texture_monster: &Texture,
 ) {
     let mut sprite_direction =
-        (sprite.get_y() - player.get_pos().0).atan2(sprite.get_x() - player.get_pos().1);
-    while sprite_direction - player.get_pos().0 > PI {
+        (sprite.get_y() - player.get_pos().1).atan2(sprite.get_x() - player.get_pos().0);
+    while sprite_direction - player.get_angle() > PI {
         sprite_direction -= 2f64 * PI;
     }
-    while sprite_direction - player.get_pos().0 < -PI {
+    while sprite_direction - player.get_angle() < -PI {
         sprite_direction += 2f64 * PI;
     }
 
     let distance = ((player.get_pos().0 - sprite.get_x()).powi(2)
-        + (player.get_pos().1 - sprite.get_y()).powi(2))
-    .sqrt();
+        + (player.get_pos().1 - sprite.get_y()).powi(2)).sqrt();
     let sprite_size = std::cmp::min(
         1000usize,
         (framebuffer.get_height() as f64 / distance) as usize,
     );
-    let h_offset = (sprite_direction
-        - player.get_angle() / player.get_fov() * (framebuffer.get_width() as f64 / 2f64))
-        as usize
-        + ((framebuffer.get_width() / 2) / 2 - texture_monster.get_size() / 2);
-    let v_offset = framebuffer.get_height() / 2 - sprite_size / 2;
+    let h_offset: isize = ((sprite_direction - player.get_angle()) / player.get_fov() * (framebuffer.get_width() as f64 / 2f64)) as isize
+        + (framebuffer.get_width() as isize / 2) as isize / 2 - texture_monster.get_size() as isize/ 2;
+    let v_offset: isize = framebuffer.get_height() as isize / 2 - sprite_size as isize / 2;
 
-    for i in 0..sprite_size {
-        if h_offset + i > framebuffer.get_width() / 2 {
+    for i in 0isize..sprite_size as isize {
+        if h_offset + i >= framebuffer.get_width() as isize / 2 {
             continue;
         }
-        for j in 0..sprite_size {
-            if v_offset + j > framebuffer.get_height() {
+        for j in 0isize..sprite_size as isize {
+            if v_offset + j >= framebuffer.get_height() as isize {
                 continue;
             }
             framebuffer.set_pixel(
-                framebuffer.get_width() / 2 + h_offset + i,
-                v_offset + j,
+                framebuffer.get_width() / 2 + h_offset  as usize + i as usize,
+                v_offset as usize  + j as usize,
                 pack_color(0, 0, 0, None),
             )
         }
@@ -183,7 +180,7 @@ fn main() {
         Sprite::new(4.123, 10.265, 1),
     ];
 
-    for i in 0..360 {
+    for i in 0..720 {
         player.add_angle(2f64 * PI / 360f64);
         render(
             &mut framebuffer,
