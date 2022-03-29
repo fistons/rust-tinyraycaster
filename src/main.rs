@@ -52,9 +52,51 @@ fn map_show_sprite(sprite: &Sprite, framebuffer: &mut Framebuffer, map: &Map) {
     )
 }
 
+fn draw_sprite(
+    sprite: &Sprite, framebuffer: &mut Framebuffer, player: &Player, texture_monster: &Texture,
+) {
+    let mut sprite_direction =
+        (sprite.get_y() - player.get_pos().0).atan2(sprite.get_x() - player.get_pos().1);
+    while sprite_direction - player.get_pos().0 > PI {
+        sprite_direction -= 2f64 * PI;
+    }
+    while sprite_direction - player.get_pos().0 < -PI {
+        sprite_direction += 2f64 * PI;
+    }
+
+    let distance = ((player.get_pos().0 - sprite.get_x()).powi(2)
+        + (player.get_pos().1 - sprite.get_y()).powi(2))
+    .sqrt();
+    let sprite_size = std::cmp::min(
+        1000usize,
+        (framebuffer.get_height() as f64 / distance) as usize,
+    );
+    let h_offset = (sprite_direction
+        - player.get_angle() / player.get_fov() * (framebuffer.get_width() as f64 / 2f64))
+        as usize
+        + ((framebuffer.get_width() / 2) / 2 - texture_monster.get_size() / 2);
+    let v_offset = framebuffer.get_height() / 2 - sprite_size / 2;
+
+    for i in 0..sprite_size {
+        if h_offset + i > framebuffer.get_width() / 2 {
+            continue;
+        }
+        for j in 0..sprite_size {
+            if v_offset + j > framebuffer.get_height() {
+                continue;
+            }
+            framebuffer.set_pixel(
+                framebuffer.get_width() / 2 + h_offset + i,
+                v_offset + j,
+                pack_color(0, 0, 0, None),
+            )
+        }
+    }
+}
+
 fn render(
-    framebuffer: &mut Framebuffer, map: &Map, player: &Player, sprites: &Vec<Sprite>,
-    texture: &Texture, _texture_monstre: &Texture,
+    framebuffer: &mut Framebuffer, map: &Map, player: &Player, sprites: &[Sprite],
+    texture: &Texture, texture_monstre: &Texture,
 ) {
     framebuffer.clear(pack_color(255, 255, 255, None));
 
@@ -123,6 +165,7 @@ fn render(
 
     for sprite in sprites {
         map_show_sprite(sprite, framebuffer, map);
+        draw_sprite(sprite, framebuffer, player, texture_monstre);
     }
 }
 
