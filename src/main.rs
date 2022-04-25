@@ -52,9 +52,53 @@ fn map_show_sprite(sprite: &Sprite, framebuffer: &mut Framebuffer, map: &Map) {
     )
 }
 
+fn draw_sprite(
+    sprite: &Sprite, framebuffer: &mut Framebuffer, player: &Player, _texture_monster: &Texture,
+) {
+    let mut sprite_direction =
+        (sprite.get_y() - player.get_pos().1).atan2(sprite.get_x() - player.get_pos().0);
+    while sprite_direction - player.get_angle() > PI {
+        sprite_direction -= 2f64 * PI;
+    }
+    while sprite_direction - player.get_angle() < -PI {
+        sprite_direction += 2f64 * PI;
+    }
+
+    let distance = ((player.get_pos().0 - sprite.get_x()).powi(2)
+        + (player.get_pos().1 - sprite.get_y()).powi(2))
+    .sqrt();
+    let sprite_size = std::cmp::min(
+        1000usize,
+        (framebuffer.get_height() as f64 / distance) as usize,
+    );
+
+    let offset_screen: usize = (framebuffer.get_width() / 2) / 2 - sprite_size / 2; // offset on the view screen
+    let h_offset: isize = ((sprite_direction - player.get_angle())
+        * (framebuffer.get_width() / 2) as f64 // as f64 to keep the precision
+        / player.get_fov()) as isize; // as isize because we can have a negative offset
+    let h_offset = h_offset as usize + offset_screen;
+    let v_offset = framebuffer.get_height() / 2 - sprite_size / 2;
+
+    for i in 0..sprite_size {
+        if h_offset + i >= framebuffer.get_width() / 2 {
+            continue;
+        }
+        for j in 0..sprite_size {
+            if v_offset + j >= framebuffer.get_height() {
+                continue;
+            }
+            framebuffer.set_pixel(
+                framebuffer.get_width() / 2 + h_offset + i,
+                v_offset + j,
+                pack_color(0, 0, 0, None),
+            )
+        }
+    }
+}
+
 fn render(
-    framebuffer: &mut Framebuffer, map: &Map, player: &Player, sprites: &Vec<Sprite>,
-    texture: &Texture, _texture_monstre: &Texture,
+    framebuffer: &mut Framebuffer, map: &Map, player: &Player, sprites: &[Sprite],
+    texture: &Texture, texture_monster: &Texture,
 ) {
     framebuffer.clear(pack_color(255, 255, 255, None));
 
@@ -123,6 +167,7 @@ fn render(
 
     for sprite in sprites {
         map_show_sprite(sprite, framebuffer, map);
+        draw_sprite(sprite, framebuffer, player, texture_monster);
     }
 }
 
@@ -140,7 +185,7 @@ fn main() {
         Sprite::new(4.123, 10.265, 1),
     ];
 
-    for i in 0..360 {
+    for i in 0..720 {
         player.add_angle(2f64 * PI / 360f64);
         render(
             &mut framebuffer,
