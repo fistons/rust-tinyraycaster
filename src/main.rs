@@ -98,7 +98,7 @@ fn draw_sprite(
 
 fn render(
     framebuffer: &mut Framebuffer, map: &Map, player: &Player, sprites: &[Sprite],
-    texture: &Texture, texture_monstre: &Texture,
+    texture: &Texture, texture_monster: &Texture,
 ) {
     framebuffer.clear(pack_color(255, 255, 255, None));
 
@@ -167,7 +167,7 @@ fn render(
 
     for sprite in sprites {
         map_show_sprite(sprite, framebuffer, map);
-        draw_sprite(sprite, framebuffer, player, texture_monstre);
+        draw_sprite(sprite, framebuffer, player, texture_monster);
     }
 }
 
