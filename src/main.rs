@@ -53,7 +53,7 @@ fn map_show_sprite(sprite: &Sprite, framebuffer: &mut Framebuffer, map: &Map) {
 }
 
 fn draw_sprite(
-    sprite: &Sprite, framebuffer: &mut Framebuffer, player: &Player, _texture_monster: &Texture,
+    sprite: &Sprite, framebuffer: &mut Framebuffer, player: &Player, texture_monster: &Texture, depth_buffer: &mut Vec<f64>
 ) {
     let mut sprite_direction =
         (sprite.get_y() - player.get_pos().1).atan2(sprite.get_x() - player.get_pos().0);
@@ -83,14 +83,25 @@ fn draw_sprite(
         if h_offset + i >= framebuffer.get_width() / 2 {
             continue;
         }
+        if depth_buffer[h_offset+i] < distance {
+            continue; // Occulted
+        }
+
         for j in 0..sprite_size {
             if v_offset + j >= framebuffer.get_height() {
                 continue;
             }
+
+            let color = texture_monster.get_pixel(i * texture_monster.get_size() / sprite_size, j * texture_monster.get_size() / sprite_size, sprite.get_id());
+            let (_,_,_,a) = utils::unpack_color(&color);
+
+            if a < 128 {
+              continue; 
+            }
             framebuffer.set_pixel(
                 framebuffer.get_width() / 2 + h_offset + i,
                 v_offset + j,
-                pack_color(0, 0, 0, None),
+                color,
             )
         }
     }
@@ -128,6 +139,7 @@ fn render(
         }
     }
 
+    let mut depth_buffer = vec![1f64; framebuffer.get_width() / 2];
     let (player_x, player_y) = player.get_pos();
     for i in 0..WIDTH / 2 {
         let angle = player.get_angle() - player.get_fov() / 2f64
@@ -147,6 +159,7 @@ fn render(
 
             if let Some(texture_id) = map.get(cx as usize, cy as usize) {
                 let dist = t * (angle - player.get_angle()).cos();
+                depth_buffer[i] = dist;
                 let column_height = (HEIGHT as f64 / dist) as usize;
 
                 let texture_x_coordinate = wall_x_texture_coordonate(cx, cy, texture);
@@ -167,7 +180,7 @@ fn render(
 
     for sprite in sprites {
         map_show_sprite(sprite, framebuffer, map);
-        draw_sprite(sprite, framebuffer, player, texture_monster);
+        draw_sprite(sprite, framebuffer, player, texture_monster, &mut depth_buffer);
     }
 }
 
@@ -180,6 +193,7 @@ fn main() {
     let texture_monster = Texture::new("resources/monsters.png")
         .unwrap_or_else(|_| panic!("Could not load monster texture"));
     let sprites = vec![
+        Sprite::new(3.523, 3.812, 2),
         Sprite::new(1.834, 8.76, 0),
         Sprite::new(5.323, 5.365, 1),
         Sprite::new(4.123, 10.265, 1),
