@@ -53,7 +53,7 @@ fn map_show_sprite(sprite: &Sprite, framebuffer: &mut Framebuffer, map: &Map) {
 }
 
 fn draw_sprite(
-    sprite: &Sprite, framebuffer: &mut Framebuffer, player: &Player, texture_monster: &Texture,
+    sprite: &Sprite, framebuffer: &mut Framebuffer, player: &Player, _texture_monster: &Texture,
 ) {
     let mut sprite_direction =
         (sprite.get_y() - player.get_pos().1).atan2(sprite.get_x() - player.get_pos().0);
@@ -65,26 +65,31 @@ fn draw_sprite(
     }
 
     let distance = ((player.get_pos().0 - sprite.get_x()).powi(2)
-        + (player.get_pos().1 - sprite.get_y()).powi(2)).sqrt();
+        + (player.get_pos().1 - sprite.get_y()).powi(2))
+    .sqrt();
     let sprite_size = std::cmp::min(
         1000usize,
         (framebuffer.get_height() as f64 / distance) as usize,
     );
-    let h_offset: isize = ((sprite_direction - player.get_angle()) / player.get_fov() * (framebuffer.get_width() as f64 / 2f64)) as isize
-        + (framebuffer.get_width() as isize / 2) as isize / 2 - texture_monster.get_size() as isize/ 2;
-    let v_offset: isize = framebuffer.get_height() as isize / 2 - sprite_size as isize / 2;
 
-    for i in 0isize..sprite_size as isize {
-        if h_offset + i >= framebuffer.get_width() as isize / 2 {
+    let offset_screen: usize = (framebuffer.get_width() / 2) / 2 - sprite_size / 2; // offset on the view screen
+    let h_offset: isize = ((sprite_direction - player.get_angle())
+        * (framebuffer.get_width() / 2) as f64 // as f64 to keep the precision
+        / player.get_fov()) as isize; // as isize because we can have a negative offset
+    let h_offset = h_offset as usize + offset_screen;
+    let v_offset = framebuffer.get_height() / 2 - sprite_size / 2;
+
+    for i in 0..sprite_size {
+        if h_offset + i >= framebuffer.get_width() / 2 {
             continue;
         }
-        for j in 0isize..sprite_size as isize {
-            if v_offset + j >= framebuffer.get_height() as isize {
+        for j in 0..sprite_size {
+            if v_offset + j >= framebuffer.get_height() {
                 continue;
             }
             framebuffer.set_pixel(
-                framebuffer.get_width() / 2 + h_offset  as usize + i as usize,
-                v_offset as usize  + j as usize,
+                framebuffer.get_width() / 2 + h_offset + i,
+                v_offset + j,
                 pack_color(0, 0, 0, None),
             )
         }
