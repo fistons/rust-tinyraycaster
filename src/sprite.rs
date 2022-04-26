@@ -1,7 +1,7 @@
 pub struct Sprite {
     x: f64,
     y: f64,
-    _texture_id: usize,
+    texture_id: usize,
 }
 
 impl Sprite {
@@ -9,7 +9,7 @@ impl Sprite {
         Self {
             x,
             y,
-            _texture_id: texture_id,
+            texture_id: texture_id,
         }
     }
 
@@ -19,5 +19,9 @@ impl Sprite {
 
     pub fn get_y(&self) -> f64 {
         self.y
+    }
+
+    pub fn get_id(&self) -> usize {
+      self.texture_id
     }
 }
