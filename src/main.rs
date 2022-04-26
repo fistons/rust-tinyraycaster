@@ -142,7 +142,7 @@ fn render(
 
         // Draw the line
         for t in 0u32..20000 {
-            let t = f64::from(t) * 0.05;
+            let t = f64::from(t) * 0.002;
             let cx = player_x + t * angle.cos();
             let cy = player_y + t * angle.sin();
 
