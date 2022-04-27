@@ -53,7 +53,8 @@ fn map_show_sprite(sprite: &Sprite, framebuffer: &mut Framebuffer, map: &Map) {
 }
 
 fn draw_sprite(
-    sprite: &Sprite, framebuffer: &mut Framebuffer, player: &Player, texture_monster: &Texture, depth_buffer: &mut Vec<f64>
+    sprite: &Sprite, framebuffer: &mut Framebuffer, player: &Player, texture_monster: &Texture,
+    depth_buffer: &mut [f64],
 ) {
     let mut sprite_direction =
         (sprite.get_y() - player.get_pos().1).atan2(sprite.get_x() - player.get_pos().0);
@@ -80,7 +81,7 @@ fn draw_sprite(
         if h_offset + i >= framebuffer.get_width() as isize / 2 || h_offset + i < 0 {
             continue;
         }
-        if depth_buffer[(h_offset+i) as usize] < sprite.get_player_dist() {
+        if depth_buffer[(h_offset + i) as usize] < sprite.get_player_dist() {
             continue; // Occulted
         }
 
@@ -89,13 +90,18 @@ fn draw_sprite(
                 continue;
             }
 
-            let color = texture_monster.get_pixel((i * texture_monster.get_size() as isize / sprite_size) as usize, (j * texture_monster.get_size() as isize / sprite_size) as usize, sprite.get_id());
-            if utils::unpack_color(&color).3 < 128 { // If the alpha of the color > 128 ("transparent" pixel) we skip
-              continue; 
+            let color = texture_monster.get_pixel(
+                (i * texture_monster.get_size() as isize / sprite_size) as usize,
+                (j * texture_monster.get_size() as isize / sprite_size) as usize,
+                sprite.get_id(),
+            );
+            if utils::unpack_color(&color).3 < 128 {
+                // If the alpha of the color > 128 ("transparent" pixel) we skip
+                continue;
             }
             framebuffer.set_pixel(
-              (framebuffer.get_width() as isize/ 2 + h_offset + i) as usize,
-              (v_offset + j) as usize,
+                (framebuffer.get_width() as isize / 2 + h_offset + i) as usize,
+                (v_offset + j) as usize,
                 color,
             )
         }
@@ -175,15 +181,26 @@ fn render(
 
     /* Compute player distance and sort the sprite by distance */
     for sprite in sprites.iter_mut() {
-      let distance = ((player.get_pos().0 - sprite.get_x()).powi(2)
-        + (player.get_pos().1 - sprite.get_y()).powi(2)).sqrt();
-      sprite.set_player_dist(distance);
+        let distance = ((player.get_pos().0 - sprite.get_x()).powi(2)
+            + (player.get_pos().1 - sprite.get_y()).powi(2))
+        .sqrt();
+        sprite.set_player_dist(distance);
     }
-    sprites.sort_by(|a, b| b.get_player_dist().to_bits().cmp(&a.get_player_dist().to_bits()));
+    sprites.sort_by(|a, b| {
+        b.get_player_dist()
+            .to_bits()
+            .cmp(&a.get_player_dist().to_bits())
+    });
 
     for sprite in sprites {
         map_show_sprite(sprite, framebuffer, map);
-        draw_sprite(sprite, framebuffer, player, texture_monster, &mut depth_buffer);
+        draw_sprite(
+            sprite,
+            framebuffer,
+            player,
+            texture_monster,
+            &mut depth_buffer,
+        );
     }
 }
 

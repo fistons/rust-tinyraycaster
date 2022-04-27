@@ -11,7 +11,7 @@ impl Sprite {
             x,
             y,
             texture_id,
-            player_dist
+            player_dist,
         }
     }
 
@@ -24,15 +24,14 @@ impl Sprite {
     }
 
     pub fn get_id(&self) -> usize {
-      self.texture_id
+        self.texture_id
     }
 
     pub fn get_player_dist(&self) -> f64 {
-      self.player_dist
+        self.player_dist
     }
 
     pub fn set_player_dist(&mut self, dist: f64) {
-      self.player_dist = dist;
+        self.player_dist = dist;
     }
 }
-
