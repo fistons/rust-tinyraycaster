@@ -31,8 +31,7 @@ pub fn drop_ppm_image(file_name: &str, framebuffer: &[u32]) -> std::io::Result<(
     let mut buffer = format!("P6\n{WIDTH} {HEIGHT}\n255\n").as_bytes().to_vec(); // Header in the write buffer
     framebuffer
         .iter()
-        .map(unpack_color)
-        .for_each(|(r, g, b, _a)| buffer.extend([r, g, b])); // Frame in the write buffer
+        .for_each(|value| buffer.extend_from_slice(&value.to_ne_bytes()[..3])); // Frame in the write buffer
 
     file.write_all(&buffer)?; // Write all the things
 
