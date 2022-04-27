@@ -10,12 +10,12 @@ use texture::Texture;
 use utils::{drop_ppm_image, pack_color};
 
 mod framebuffer;
+mod gui;
 mod map;
 mod player;
 mod sprite;
 mod texture;
 mod utils;
-mod gui;
 
 /// Windows width
 const WIDTH: usize = 1024;
@@ -109,7 +109,7 @@ fn draw_sprite(
     }
 }
 
-fn render(
+pub fn render(
     framebuffer: &mut Framebuffer, map: &Map, player: &Player, sprites: &mut [Sprite],
     texture: &Texture, texture_monster: &Texture,
 ) {
@@ -236,4 +236,6 @@ fn main() {
         )
         .expect("Could not write data on disk");
     }
+
+    gui::main();
 }
