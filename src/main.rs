@@ -15,6 +15,7 @@ mod player;
 mod sprite;
 mod texture;
 mod utils;
+mod gui;
 
 /// Windows width
 const WIDTH: usize = 1024;

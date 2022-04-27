@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 image = "0.24.1"
+sdl2 = "0.35.2"
 
 [profile.release]
 strip = true
