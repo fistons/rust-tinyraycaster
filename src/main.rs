@@ -65,37 +65,37 @@ fn draw_sprite(
     }
 
     let sprite_size = std::cmp::min(
-        1000usize,
-        (framebuffer.get_height() as f64 / sprite.get_player_dist()) as usize,
+        1000isize,
+        (framebuffer.get_height() as f64 / sprite.get_player_dist()) as isize,
     );
 
-    let offset_screen: usize = (framebuffer.get_width() / 2) / 2 - sprite_size / 2; // offset on the view screen
+    let offset_screen: isize = (framebuffer.get_width() as isize / 2) / 2 - sprite_size / 2; // offset on the view screen
     let h_offset: isize = ((sprite_direction - player.get_angle())
         * (framebuffer.get_width() / 2) as f64 // as f64 to keep the precision
         / player.get_fov()) as isize; // as isize because we can have a negative offset
-    let h_offset = h_offset as usize + offset_screen;
-    let v_offset = framebuffer.get_height() / 2 - sprite_size / 2;
+    let h_offset = h_offset + offset_screen;
+    let v_offset = framebuffer.get_height() as isize / 2 - sprite_size / 2;
 
     for i in 0..sprite_size {
-        if h_offset + i >= framebuffer.get_width() / 2 {
+        if h_offset + i >= framebuffer.get_width() as isize / 2 || h_offset + i < 0 {
             continue;
         }
-        if depth_buffer[h_offset+i] < sprite.get_player_dist() {
+        if depth_buffer[(h_offset+i) as usize] < sprite.get_player_dist() {
             continue; // Occulted
         }
 
         for j in 0..sprite_size {
-            if v_offset + j >= framebuffer.get_height() {
+            if v_offset + j >= framebuffer.get_height() as isize || v_offset + j < 0 {
                 continue;
             }
 
-            let color = texture_monster.get_pixel(i * texture_monster.get_size() / sprite_size, j * texture_monster.get_size() / sprite_size, sprite.get_id());
+            let color = texture_monster.get_pixel((i * texture_monster.get_size() as isize / sprite_size) as usize, (j * texture_monster.get_size() as isize / sprite_size) as usize, sprite.get_id());
             if utils::unpack_color(&color).3 < 128 { // If the alpha of the color > 128 ("transparent" pixel) we skip
               continue; 
             }
             framebuffer.set_pixel(
-                framebuffer.get_width() / 2 + h_offset + i,
-                v_offset + j,
+              (framebuffer.get_width() as isize/ 2 + h_offset + i) as usize,
+              (v_offset + j) as usize,
                 color,
             )
         }
