@@ -14,4 +14,3 @@ pub fn unpack_color(color: &u32) -> (u8, u8, u8, u8) {
 
     (r, g, b, a)
 }
-
