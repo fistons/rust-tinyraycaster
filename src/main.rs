@@ -1,16 +1,19 @@
 //! Poor attempt to write the [ssloy's tinyraycaster](https://github.com/ssloy/tinyraycaster/wiki) in rust
 //! to teach mysef both rust and raycasting
+use sdl2::event::Event;
+use sdl2::keyboard::Keycode;
+use sdl2::pixels::{Color, PixelFormatEnum};
+use std::time::Duration;
+use std::f64::consts::PI;
 
 use framebuffer::Framebuffer;
 use map::Map;
 use player::Player;
 use sprite::Sprite;
-use std::f64::consts::PI;
 use texture::Texture;
-use utils::{drop_ppm_image, pack_color};
+use utils::pack_color;
 
 mod framebuffer;
-mod gui;
 mod map;
 mod player;
 mod sprite;
@@ -206,8 +209,9 @@ pub fn render(
 }
 
 fn main() {
+
     let mut framebuffer = Framebuffer::new(WIDTH, HEIGHT);
-    let mut player = Player::new(3.456, 2.345, 1.523, PI / 3f64);
+    let player = Player::new(3.456, 2.345, 1.523, PI / 3f64);
     let map = Map::default();
     let texture = Texture::new("resources/walltext.png")
         .unwrap_or_else(|_| panic!("Could not load walls texture"));
@@ -219,23 +223,71 @@ fn main() {
         Sprite::new(5.323, 5.365, 1, 0.0),
         Sprite::new(4.123, 10.265, 0, 0.0),
     ];
+    render(
+        &mut framebuffer,
+        &map,
+        &player,
+        &mut sprites,
+        &texture,
+        &texture_monster,
+    );
 
-    for i in 0..720 {
-        player.add_angle(2f64 * PI / 360f64);
-        render(
-            &mut framebuffer,
-            &map,
-            &player,
-            &mut sprites,
-            &texture,
-            &texture_monster,
-        );
-        drop_ppm_image(
-            &format!("./out_{i:0width$}.ppm", width = 3),
-            framebuffer.get_image(),
-        )
-        .expect("Could not write data on disk");
+    let sdl_context = sdl2::init().unwrap();
+    let video_subsystem = sdl_context.video().unwrap();
+
+    let window = video_subsystem
+        .window("Tiny Raycaster", 1024, 512)
+        .position_centered()
+        .vulkan()
+        .build()
+        .unwrap();
+
+    let mut canvas = window
+        .into_canvas()
+        .accelerated()
+        .present_vsync()
+        .build()
+        .unwrap();
+
+    canvas.set_draw_color(Color::RGB(0, 255, 255));
+    canvas.clear();
+
+    let mut buffer: Vec<u8> = vec![];
+    framebuffer
+        .get_image()
+        .iter()
+        .for_each(|val| buffer.extend_from_slice(&val.to_le_bytes()));
+    let texture_creator = canvas.texture_creator();
+
+    let mut texture = texture_creator
+        .create_texture_streaming(Some(PixelFormatEnum::ABGR8888), 1024, 512)
+        .unwrap();
+
+    texture
+        .update(None, &buffer, framebuffer.get_width() * 4)
+        .unwrap();
+
+    canvas.copy(&texture, None, None).unwrap();
+
+    canvas.present();
+    let mut event_pump = sdl_context.event_pump().unwrap();
+    'main_loop: loop {
+        canvas.clear();
+        canvas.copy(&texture, None, None).unwrap();
+
+        for event in event_pump.poll_iter() {
+            match event {
+                Event::Quit { .. }
+                | Event::KeyDown {
+                    keycode: Some(Keycode::Escape),
+                    ..
+                } => break 'main_loop,
+                _ => {}
+            }
+        }
+
+        canvas.present();
+        std::thread::sleep(Duration::from_millis(7)); // 1 frame every 7 ms => 144 hz more or less
     }
 
-    gui::main();
 }
