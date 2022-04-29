@@ -14,7 +14,9 @@ impl Framebuffer {
     }
 
     pub fn set_pixel(&mut self, x: usize, y: usize, pixel: u32) {
-        self.image[x + y * self.width] = pixel;
+        if x + y * self.width < self.image.len() {
+            self.image[x + y * self.width] = pixel;
+        }
     }
 
     pub fn clear(&mut self, color: u32) {

@@ -210,7 +210,7 @@ pub fn render(
 
 fn main() {
     let mut framebuffer = Framebuffer::new(WIDTH, HEIGHT);
-    let player = Player::new(3.456, 2.345, 1.523, PI / 3f64);
+    let mut player = Player::new(3.456, 2.345, 1.523, PI / 3f64);
     let map = Map::default();
     let texture = Texture::new("resources/walltext.png")
         .unwrap_or_else(|_| panic!("Could not load walls texture"));
@@ -250,6 +250,34 @@ fn main() {
 
     let mut event_pump = sdl_context.event_pump().unwrap();
     'main_loop: loop {
+        for event in event_pump.poll_iter() {
+            match event {
+                Event::Quit { .. }
+                | Event::KeyDown {
+                    keycode: Some(Keycode::Escape),
+                    ..
+                } => break 'main_loop,
+                Event::KeyUp {
+                    keycode: Some(k), ..
+                } => match k {
+                    Keycode::Z | Keycode::S => player.walk = 0,
+                    Keycode::Q | Keycode::D => player.turn = 0,
+                    _ => (),
+                },
+                Event::KeyDown {
+                    keycode: Some(k), ..
+                } => match k {
+                    Keycode::Z => player.walk = 1,
+                    Keycode::S => player.walk = -1,
+                    Keycode::Q => player.turn = -1,
+                    Keycode::D => player.turn = 1,
+                    _ => (),
+                },
+                _ => (),
+            }
+        }
+        player.update();
+
         render(
             &mut framebuffer,
             &map,
@@ -271,19 +299,7 @@ fn main() {
 
         canvas.clear();
         canvas.copy(&sdl_texture, None, None).unwrap();
-
-        for event in event_pump.poll_iter() {
-            match event {
-                Event::Quit { .. }
-                | Event::KeyDown {
-                    keycode: Some(Keycode::Escape),
-                    ..
-                } => break 'main_loop,
-                _ => {}
-            }
-        }
-
         canvas.present();
-        std::thread::sleep(Duration::from_millis(7)); // 1 frame every 7 ms => 144 hz more or less
+        std::thread::sleep(Duration::from_millis(7)); // 1 frame evey 7 ms => 144 hz more or less
     }
 }
