@@ -20,8 +20,8 @@ const DEFAULT_HEIGHT: usize = 16;
 
 pub struct Map {
     map: Vec<char>,
-    width: usize,
-    height: usize,
+    pub width: usize,
+    pub height: usize,
 }
 
 impl Map {
@@ -46,13 +46,5 @@ impl Map {
 
     pub fn is_empty(&self, i: usize, j: usize) -> bool {
         self.map[i + j * self.width] == ' '
-    }
-
-    pub fn get_width(&self) -> usize {
-        self.width
-    }
-
-    pub fn get_height(&self) -> usize {
-        self.height
     }
 }

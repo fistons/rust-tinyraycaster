@@ -4,7 +4,7 @@ use image::GenericImageView;
 pub struct Texture {
     image_width: usize,
     count: usize,
-    size: usize,
+    pub size: usize,
     image: Vec<u32>,
 }
 
@@ -56,9 +56,5 @@ impl Texture {
         }
 
         column
-    }
-
-    pub fn get_size(&self) -> usize {
-        self.size
     }
 }
