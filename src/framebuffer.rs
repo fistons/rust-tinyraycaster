@@ -1,5 +1,5 @@
 pub struct Framebuffer {
-    image: Vec<u32>,
+    pub image: Vec<u32>,
     width: usize,
     height: usize,
 }
@@ -14,7 +14,9 @@ impl Framebuffer {
     }
 
     pub fn set_pixel(&mut self, x: usize, y: usize, pixel: u32) {
-        self.image[x + y * self.width] = pixel;
+        if x + y * self.width < self.image.len() {
+            self.image[x + y * self.width] = pixel;
+        }
     }
 
     pub fn clear(&mut self, color: u32) {
@@ -34,17 +36,5 @@ impl Framebuffer {
                 self.image[cx + cy * self.width] = color;
             }
         }
-    }
-
-    pub fn get_image(&self) -> &Vec<u32> {
-        &self.image
-    }
-
-    pub fn get_width(&self) -> usize {
-        self.width
-    }
-
-    pub fn get_height(&self) -> usize {
-        self.height
     }
 }
